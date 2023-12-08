@@ -18,11 +18,7 @@ const adminModel =new mongoose.Schema({
         date:Date,
         walletType:String,
         amount:Number,
-        turfName:{
-            type:mongoose.Types.ObjectId,
-            ref:'Turf',
-            required:true
-        },
+        turfName:String, 
         transaction:{
             type:String,
             enum:['debit','credit']

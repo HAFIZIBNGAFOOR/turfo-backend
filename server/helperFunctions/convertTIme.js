@@ -29,8 +29,34 @@ const convert12HourTo24HourNumber =  (time12h)=> {
   }
   return Number(hours);
 }
+
+const convert24HourTo12HourString = (hour24) => {
+  if (hour24 === 24) {
+    return '12:00 AM';
+  }
+
+  const period = hour24 < 12 ? 'AM' : 'PM';
+  const hours12 = hour24 % 12 || 12; // Convert 0 to 12
+  const minutes = '00';
+
+  return `${String(hours12).padStart(2, '0')}:${minutes} ${period}`;
+};
+
+const  generateRandomString = (length)=> {
+  const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let randomString = '';
+
+  for (let i = 0; i < length; i++) {
+    const randomIndex = Math.floor(Math.random() * charset.length);
+    randomString += charset.charAt(randomIndex);
+  }
+
+  return randomString;
+}
 module.exports ={
     getCurrentTime,
     convert12HourTo24Hour,
-    convert12HourTo24HourNumber
+    convert12HourTo24HourNumber,
+    convert24HourTo12HourString,
+    generateRandomString
 }

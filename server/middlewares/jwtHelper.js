@@ -18,7 +18,6 @@ const verifyUserJwt = async(req,res,next)=>{
 }
 const verifyTurfAdminJwt = async(req,res,next)=>{
     try {
-        console.log(req.body)
         let token ;
         if('authorization' in req.headers) token = req.headers['authorization'].split(' ')[1];
         if(token){

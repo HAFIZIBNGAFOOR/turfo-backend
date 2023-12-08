@@ -35,16 +35,23 @@ const getDashboardDetails=async(req,res)=>{
         annualBookings.forEach(booking=>annualSales+= booking.totalCost);
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        const monthlyBookings = bookings.filter(booking => new Date(booking.bookedSlots.date) >= thirtyDaysAgo)
+        const today = new Date();
+        const monthlyBookings = bookings.filter(booking => {
+            const bookingDate = new Date(booking.bookedSlots.date);
+            return bookingDate >= thirtyDaysAgo && bookingDate <= today;
+        })
         let monthlySales = 0;
         monthlyBookings.forEach(booking=>monthlySales += booking.totalCost)
         // console.log(annualBookings,annualSales,monthlySales,monthlyBookings);
-        const today = new Date();
         const currentDay = today.getDay();
         const diff = today.getDate() - currentDay + (currentDay === 0 ? -6 : 1);
 
         console.log(diff,' this islast week date ',new Date(today.setDate(diff)),currentDay,'  ');
-        const weeklyBookings = bookings.filter(booking =>  new Date(today.setDate(diff + 6)) < new Date(booking.bookedSlots.date) < new Date(today.setDate(diff)));
+        const weeklyBookings = bookings.filter(booking =>  {
+            const bookingDate = new Date(booking.bookedSlots.date);
+            return bookingDate > new Date(today.setDate(diff)) && bookingDate < new Date(today.setDate(diff + 6));
+    
+        });
         let weeklySales = 0 
         weeklyBookings.forEach(booking =>weeklySales += booking.totalCost )
         console.log(weeklyBookings,' this is weekly ',weeklySales);
@@ -179,6 +186,48 @@ const getSports =async(req,res)=>{
     }
 }
 
+const cancelBooking = async(req,res)=>{
+    try {
+        const booking = await Bookings.findById(req.body.id).populate('turf')
+        const admin = await AdminModel.findById(req.id);
+        const turf = await Turf.findById(booking.turf._id);
+        const turfOwner = await TurfAdmin.findById(turf.turfOwner)
+        turfOwner.wallet -= booking.totalCost * 0.95;
+        turfOwner.walletStatements.push({
+            turfName:booking.turf.turfName,
+            walletType:'Refund for cancellation of turf',
+            amount:booking.totalCost * 0.95,
+            date:new Date(),
+            transaction:'debit'
+        })
+        await turfOwner.save()
+        admin.wallet -= booking.totalCost * 0.05;
+        admin.walletStatements.push({
+            turfName : booking.turf.turfName,
+            walletType :'Refund for cancellation of turf',
+            amount :  booking.totalCost * 0.05,
+            date : new Date(),
+            transaction : 'debit'
+        })
+        await admin.save()
+        const user = await User.findById(booking.user)
+        user.wallet += booking.totalCost ;
+        user.walletStatements.push({
+            turfName: booking.turf.turfName,
+            walletType:'Refund for cancellation of turf',
+            amount:booking.totalCost,
+            date: new Date(),
+            transaction:'credit'
+        })
+        await user.save()
+        booking.bookingStatus == 'Cancelled';
+        await booking.save();
+        const bookings = await Bookings.findById(booking._id);
+        res.status(500).json({bookings})
+    } catch (error) {
+        res.status(500).json({message:"Internal server error "})
+    }
+}
 module.exports = {
     adminLogin,
     getDashboardDetails,
@@ -188,5 +237,6 @@ module.exports = {
     addSports,
     getSingleTurfAdmin,
     getSports,
-    usersDetails
+    usersDetails,
+    cancelBooking
 }

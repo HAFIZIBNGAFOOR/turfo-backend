@@ -17,6 +17,9 @@ const turfAdminModel = new mongoose.Schema({
         type:String,
         required:true
     },
+    age:{
+        type:Number,
+    },
     password:{
         type:String,
         required:true
@@ -31,11 +34,7 @@ const turfAdminModel = new mongoose.Schema({
         walletType:String,
         amount:Number,
         user:String,
-        turfName:{
-            type:mongoose.Types.ObjectId,
-            ref:'Turf',
-            required:true
-        },
+        turfName:String,
         transaction:{
             type:String,
             enum:['debit','credit']

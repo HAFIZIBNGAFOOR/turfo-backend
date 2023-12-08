@@ -4,6 +4,8 @@ const turfController = require('../controllers/turf.controller')
 const turfAdminRoute = express();
 const jwtHelper = require('../middlewares/jwtHelper'); 
 const upload = require("../config/multer");
+const bookingController = require('../controllers/bookings.controller')
+const turfAdmin = require("../model/turfAdmin.model");
 
 
 turfAdminRoute.post('/turfAdmin/register',turfAdminController.registerTurfAdmin);
@@ -22,5 +24,9 @@ turfAdminRoute.get('/turfAdmin/timeSlots/:turfId/:date',jwtHelper.verifyTurfAdmi
 turfAdminRoute.post('/turfAdmin/addSlots',jwtHelper.verifyTurfAdminJwt,turfAdminController.addSlots)
 turfAdminRoute.patch('/turfAdmin/cancel-booking',jwtHelper.verifyTurfAdminJwt,turfAdminController.cancelBookingByTurfAdmin);
 turfAdminRoute.get('/turfAdmin/getProfile',jwtHelper.verifyTurfAdminJwt,turfAdminController.getProfile)
+turfAdminRoute.patch('/turfAdmin/update-profile',jwtHelper.verifyTurfAdminJwt,turfAdminController.updateProfile);
+turfAdminRoute.post('/turfAdmin/turfs-booking',jwtHelper.verifyTurfAdminJwt,turfAdminController.turfBookings);
+turfAdminRoute.post('/turfAdmin/cancel-booking',jwtHelper.verifyTurfAdminJwt,turfAdminController.cancelBookingByTurfAdmin)
+
 
 module.exports = turfAdminRoute

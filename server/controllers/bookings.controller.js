@@ -5,89 +5,100 @@ const UserModel = require('../model/user.model');
 const RatingModel = require('../model/rating.model');
 const dotenv = require('dotenv');
 const { updateSlotWithExpiredDates } = require("./turf.controller");
-const { convert12HourTo24Hour, convert12HourTo24HourNumber } = require("../helperFunctions/convertTIme");
+const { convert12HourTo24HourNumber, convert24HourTo12HourString, generateRandomString } = require("../helperFunctions/convertTIme");
 const AdminModel = require("../model/admin.model");
 const TurfAdmin = require("../model/turfAdmin.model");
 dotenv.config()
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
 
-const bookingTurf = async(data, metadata,req,res)=>{
-    try {
-        const body = req.body
-        const bookings =new BookingModel()
-        const slots = JSON.parse(data.slotTiming)
-        const date = formatDate(data.bookingDate);
-        const turf = await TurfModel.findById(data.turf);
-        const user = await UserModel.findById(data.userId);
-        const dateIndex = turf.slots.findIndex((slot)=>slot.dateString === date);
+
+const bookingTurfs = async(data, metadata,req,res)=>{
+  try {
+    if(req.body && data && metadata){
+      console.log('inside all slots ');
+      const turf = await TurfModel.findById(data.turf);
+      const booking = new BookingModel();
+      const user = await UserModel.findById(data.userId);
+      const slots = JSON.parse(data.slotTiming)
+      booking.user = data.userId,
+      booking.turf = data.turf,
+      booking.Time = new Date(),
+      booking.paymentType = metadata.payment_method_types[0],
+      booking.totalCost = (metadata.amount/100);
+      booking.bookingId = generateRandomString(12)
+      const date = formatDate(data.bookingDate);
+      const dateIndex = turf.slots.findIndex((slot)=>slot.dateString === date);
         const slotToRemove = {
           end:slots.end,
           start:slots.start
         }
         const startRangeTime = convert12HourTo24HourNumber(slotToRemove.start)
         const endRangeTime = convert12HourTo24HourNumber(slotToRemove.end)
-        if(dateIndex !== -1){
-          const  bookedSlots = turf.slots[dateIndex].timeSlots.filter((slot)=>{
-            return convert12HourTo24HourNumber(slot.start) >= startRangeTime &&convert12HourTo24HourNumber(slot.end) <= endRangeTime
+      let bookedSlots;
+      if(dateIndex !== -1){
+          bookedSlots = turf.slots[dateIndex].timeSlots.filter((slot)=>{
+          return convert12HourTo24HourNumber(slot.start) >= startRangeTime && convert12HourTo24HourNumber(slot.end) <= endRangeTime
+        })
+          booking.bookedSlots = {
+            slots : bookedSlots.map(slot=>({start:slot.start,end:slot.end})),
+            date:new Date(data.bookingDate),
+            dateString:data.bookingDate 
+          }
+          turf.slots[dateIndex].timeSlots = turf.slots[dateIndex].timeSlots.filter((slot)=>{
+            return  convert12HourTo24HourNumber(slot.start) < startRangeTime || convert12HourTo24HourNumber(slot.end) > endRangeTime
           } )
-          if(body && data && metadata && bookedSlots.length>0){
-            bookings.user = data.userId,
-            bookings.turf = data.turf,
-            bookings.Time = new Date(),
-            bookings.bookingId = body.id,
-            bookings.bookedSlots ={
-                slots : bookedSlots.map(slot=>({start:slot.start,end:slot.end})),
-                date:new Date(data.bookingDate),
-                dateString:data.bookingDate
-            },
-            bookings.paymentType = metadata.payment_method_types[0],
-            bookings.totalCost = (metadata.amount/100);
-            // await bookings.save();
-
-            // updating with removing expired dates and times;
-
-            updateSlotWithExpiredDates(data.turf);
-            const dateIndex = turf.slots.findIndex((slot)=>slot.dateString === date);
-            if(dateIndex !== -1){
-              turf.slots[dateIndex].timeSlots = turf.slots[dateIndex].timeSlots.filter((slot)=>{
-                return  convert12HourTo24HourNumber(slot.start) < startRangeTime || convert12HourTo24HourNumber(slot.end) > endRangeTime
-              } )
-              console.log(turf.slots[dateIndex],' turf slots in date index ');
-              // await turf.save();
-            } 
-            const turfAdmin = await TurfAdmin.findOne({_id:turf.turfOwner});
-            turfAdmin.wallet += (bookings.totalCost * 0.95);
-            turfAdmin.walletStatements.push({ 
-              turfName:turf.turfName,
-              walletType:'credited from booking',
-              amount:(bookings.totalCost * 0.95),
-              user:user.userName,
-              date:new Date(),
-              transaction:'credit'
-            });
-            console.log(bookings.totalCost * 0.95,turfAdmin,' before turf admin saveeeeeee');
-            await turfAdmin.save()
-
-            let admin = await AdminModel.findOne({email:'pitchperfect@gmail.com'});
-            admin.wallet += (bookings.totalCost * 0.05);
-            admin.walletStatements.push({
-              turfName:turf.turfName,
-              walletType:'credited from booking',
-              user:user.userName,
-              amount:(bookings.totalCost * 0.05),
-              date:new Date(),
-              transaction:'credit'
+        }else{
+          const formattedSlots = [];
+          let startTime = convert12HourTo24HourNumber(slots.start);
+          while(startTime< endRangeTime){
+            formattedSlots.push({
+              start:convert24HourTo12HourString(startTime),
+              end:convert24HourTo12HourString(startTime+1)
             })
-            console.log(admin.wallet,(bookings.totalCost * 0.05),admin.walletStatements,' vefore admin walett saveeeee ddddd');
-            await admin.save()
-            res.status(200).json({message:' sucsess'})
+            startTime++
+          }
+          console.log(formattedSlots ,' this is formated slots ');
+          booking.bookedSlots = {
+            slots :formattedSlots,
+            date:new Date(data.bookingDate),
+            dateString:data.bookingDate 
+          }
         }
-        } res.status(404).json({message:'No data found'})
- 
-    } catch (error) {
-        console.log(error,' this is error in booking');
-        res.status(500).json({message:''})
+        await booking.save();
+        await turf.save();
+        const turfAdmin = await TurfAdmin.findOne({_id:turf.turfOwner});
+        console.log(turfAdmin.wallet,turfAdmin.walletStatements,'befoooreeeee');
+        turfAdmin.wallet += (booking.totalCost * 0.95);
+        turfAdmin.walletStatements.push({ 
+          turfName:turf.turfName,
+          walletType:'credited from booking',
+          amount:(booking.totalCost * 0.95),
+          user:user.userName,
+          date:new Date(),
+          transaction:'credit'
+        });
+        console.log(turfAdmin.wallet,turfAdmin.walletStatements,'aftereeeeeee');
+        console.log(booking.totalCost * 0.95,turfAdmin.turfAdminName,' before turf admin saveeeeeee');
+        await turfAdmin.save()
+
+        let admin = await AdminModel.findOne({email:'pitchperfect@gmail.com'});
+        console.log(admin.email,admin.wallet,admin.walletStatements,'beforeeeeeee');
+        admin.wallet += (booking.totalCost * 0.05);
+        admin.walletStatements.push({
+          turfName:turf.turfName,
+          walletType:'credited from booking',
+          user:user.userName,
+          amount:(booking.totalCost * 0.05),
+          date:new Date(),
+          transaction:'credit'
+        })
+        console.log(admin,admin.wallet,admin.walletStatements,' afteereeeeeee');
+        await admin.save()
     }
+  } catch (error) {
+    console.log(error,' this is error from booking turf ');
+    res.status(500).json({message:"Internal server error "})
+  }
 }
 const checkoutSession = async(req,res)=>{
     try {
@@ -102,7 +113,7 @@ const checkoutSession = async(req,res)=>{
             }
         })
         const quantity =convert12HourTo24HourNumber(slots.end)- convert12HourTo24HourNumber(slots.start);
-        console.log(quantity);
+        console.log(quantity,' quantity ');
         const session = await stripe.checkout.sessions.create({
             payment_method_types:['card'],
             line_items: [
@@ -119,8 +130,8 @@ const checkoutSession = async(req,res)=>{
             ],
             customer:customer.id,
             mode:'payment',
-            success_url:`http://localhost:4200/booking-success`,
-            cancel_url:`http://localhost:4200/booking-failed`,
+            success_url:`https://turfo.netlify.app/booking-success`,
+            cancel_url:`https://turfo.netlify.app/booking-failed`,
         })
         res.status(200).json({id:session.id})
     } catch (error) {
@@ -146,8 +157,9 @@ const webhooks = async(req,res)=>{
         eventType=req.body.type
       if(eventType === "payment_intent.succeeded"){
         stripe.customers.retrieve(data.customer).then((customer)=>{
-          // console.log(customer.metadata,data,req,res);
-            bookingTurf(customer.metadata, data, req,res);
+          console.log(' inside the session checkout ');
+            // bookingTurf(customer.metadata, data, req,res);
+            bookingTurfs(customer.metadata, data, req,res)
         })
       }
     }
@@ -438,7 +450,6 @@ const getFullTurfDetails = async(req,res)=>{
   }
 }
 module.exports={
-    bookingTurf,
     webhooks,
     checkoutSession,
     bookingDetails,

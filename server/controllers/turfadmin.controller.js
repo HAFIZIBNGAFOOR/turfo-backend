@@ -12,6 +12,7 @@ const path  = require('path');
 const sharp = require('sharp');
 const dotenv = require('dotenv');
 const { updateSlotWithExpiredDates } = require("./turf.controller");
+const User = require("../model/user.model");
 dotenv.config()
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
 
@@ -239,7 +240,31 @@ const addSlots =async(req,res)=>{
 const cancelBookingByTurfAdmin = async(req,res)=>{
     try {
         await Bookings.findByIdAndUpdate(req.body.bookingId,{$set:{bookingStatus:'Cancelled'}});
-        res.status(200).json({message:'Booking cancelled successfully'})
+        const booking = await Bookings.findById(req.body.bookingId).populate('turf');
+        const user = await User.findOne({_id:booking.user});
+        user.wallet += booking.totalCost;
+        user.walletStatements.push({
+            walletType:'Refund from cancellation by Turf',
+            amount:booking.totalCost,
+            date:new Date(),
+            transaction:'credit',
+            turfName:booking.turf.turfName
+        })
+        await user.save()
+        const turfAdmin = await TurfAdmin.findOne({_id:booking.turf.turfOwner})
+        turfAdmin.wallet -= booking.totalCost;
+        turfAdmin.walletStatements.push({
+            walletType:'Refund from cancellation by Turf',
+            amount:booking.totalCost,
+            date:new Date(),
+            transaction:'debit',
+            turfName:booking.turf.turfName,
+            user:user.userName
+        })
+        await turfAdmin.save()
+        const bookings = await  Bookings.find({turf:booking.turf._id})   
+        const turf = await TurfModel.findById(booking.turf._id)
+        res.status(200).json({bookings,turf})
     } catch (error) {
         console.log(error,' this is error ');
         res.status(500).json({message:'Internal server error '})
@@ -257,6 +282,39 @@ const getProfile = async(req,res)=>{
     }
 }
 
+const updateProfile = async(req,res)=>{
+    try {
+        const {name,email,Phone,Age,id} = req.body
+        const ageNum = parseInt(Age)
+        await TurfAdmin.findByIdAndUpdate(id,{
+            turfAdminName:name,
+            email:email,
+            phone:Phone,
+            age:ageNum
+        })
+        const profile = await TurfAdmin.findById(id);
+        console.log(profile,' this is profile');
+        res.status(200).json({profile})
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({message:'Internal server error '})
+    }
+}
+
+const turfBookings = async(req,res)=>{
+    try {
+        const bookings = await Bookings.find({turf:req.body.turfId}).populate('user')
+        const turf = await TurfModel.findById(req.body.turfId) ;
+        console.log(bookings,turf,' this is turf ');
+        if(bookings && bookings.length>1){
+            res.status(200).json({bookings,turf})
+        }
+    } catch (error) {
+        res.status(500).json({message:'Internal server error '})
+    }
+}
+
+
 module.exports = {
     registerTurfAdmin,
     loginTurfAdmin,
@@ -267,6 +325,8 @@ module.exports = {
     addSlots,
     turfAdminDashboard,
     cancelBookingByTurfAdmin,
-    getProfile
+    getProfile,
+    updateProfile,
+    turfBookings
     // testing
 }

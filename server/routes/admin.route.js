@@ -19,4 +19,5 @@ adminRoute.get('/get-bookings',verifyAdminJwt,bookingController.getFullTurfDetai
 adminRoute.get('/get-turfs',verifyAdminJwt,turfController.turfLists);
 adminRoute.patch('/blockUnblock-turf',verifyAdminJwt,turfController.blockOrUnblockTurf);
 adminRoute.get('/single-booking/:bookingId',verifyAdminJwt, bookingController.singleBooking)
+adminRoute.get('/cancel-booking',verifyAdminJwt,adminController.cancelBooking)
 module.exports = adminRoute

@@ -63,17 +63,20 @@ const removeNonVerified= async(req,res)=>{
 const login= async(req,res)=>{
     try {
         const user = await User.findOne({phone:req.body.phone});
-        if(!user.isBlocked){
+        console.log(req.body);
+
             if(user){
+                if(!user.isBlocked){
                 const passMatch = bcrypt.compareSync(req.body.password,user.password);
                 if(passMatch){
                     const payload  ={name:user.userName,id:user._id}
                     const token = jwt.sign(payload,process.env.JWT_SECRET,{expiresIn:"1d"});
                     res.status(200).json({success:true,message:"logged in successfully",token:token});
                 }else res.status(401).json({message:"Incorrect Password ",success:false,})
-            }else res.status(400).json({message:"User not Found"})
-        }else res.status(400).json({message:'User is blocked by admin'});
+            }else res.status(400).json({message:"User is blocked by admin"})
+        }else res.status(400).json({message:'User not Found '});
     } catch (error) {
+        console.log(error);
         res.status(500).json({message:'internal server error'})
     }
 }
