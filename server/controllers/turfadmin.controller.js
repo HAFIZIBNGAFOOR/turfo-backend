@@ -306,7 +306,7 @@ const turfBookings = async(req,res)=>{
         const bookings = await Bookings.find({turf:req.body.turfId}).populate('user')
         const turf = await TurfModel.findById(req.body.turfId) ;
         console.log(bookings,turf,' this is turf ');
-        if(bookings && bookings.length>1){
+        if(bookings && bookings.length>=1){
             res.status(200).json({bookings,turf})
         }
     } catch (error) {
