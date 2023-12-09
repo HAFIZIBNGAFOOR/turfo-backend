@@ -57,7 +57,6 @@ const bookingTurfs = async(data, metadata,req,res)=>{
             })
             startTime++
           }
-          console.log(formattedSlots ,' this is formated slots ');
           booking.bookedSlots = {
             slots :formattedSlots,
             date:new Date(data.bookingDate),
@@ -67,7 +66,6 @@ const bookingTurfs = async(data, metadata,req,res)=>{
         await booking.save();
         await turf.save();
         const turfAdmin = await TurfAdmin.findOne({_id:turf.turfOwner});
-        console.log(turfAdmin.wallet,turfAdmin.walletStatements,'befoooreeeee');
         turfAdmin.wallet += (booking.totalCost * 0.95);
         turfAdmin.walletStatements.push({ 
           turfName:turf.turfName,
@@ -77,12 +75,9 @@ const bookingTurfs = async(data, metadata,req,res)=>{
           date:new Date(),
           transaction:'credit'
         });
-        console.log(turfAdmin.wallet,turfAdmin.walletStatements,'aftereeeeeee');
-        console.log(booking.totalCost * 0.95,turfAdmin.turfAdminName,' before turf admin saveeeeeee');
         await turfAdmin.save()
 
         let admin = await AdminModel.findOne({email:'pitchperfect@gmail.com'});
-        console.log(admin.email,admin.wallet,admin.walletStatements,'beforeeeeeee');
         admin.wallet += (booking.totalCost * 0.05);
         admin.walletStatements.push({
           turfName:turf.turfName,
@@ -92,11 +87,9 @@ const bookingTurfs = async(data, metadata,req,res)=>{
           date:new Date(),
           transaction:'credit'
         })
-        console.log(admin,admin.wallet,admin.walletStatements,' afteereeeeeee');
         await admin.save()
     }
   } catch (error) {
-    console.log(error,' this is error from booking turf ');
     res.status(500).json({message:"Internal server error "})
   }
 }
@@ -376,34 +369,53 @@ const getTurfLocation = async(req,res)=>{
 }
 const checkWalletAndBook = async(req,res)=>{
   try {
-    const turf  = await TurfModel.findById(req.body.turfId);
+    const turfToUpdate = await TurfModel.findById(req.body.turfId);
     const slotToRemove = req.body.slot.slots
-    const amountToProceed = turf.turfPrice
+    const amountToProceed = req.body.totalCost
     const user = await UserModel.findById({_id:req.id});
 
-    // const bookedSlots = turfToUpdate.slots[dateIndex].timeSlots
 
     if(user.wallet >= amountToProceed){
-      const turfToUpdate = await TurfModel.findById(req.body.turfId);
       const dateIndex = turfToUpdate.slots.findIndex((slot)=>slot.dateString === req.body.slot.dateString);
+      const startRangeTime = convert12HourTo24HourNumber(slotToRemove.start)
+      const endRangeTime = convert12HourTo24HourNumber(slotToRemove.end)
+      const booking= new BookingModel()
       if(dateIndex !== -1){
-        const  bookedSlots = turf.slots[dateIndex].timeSlots.filter((slot)=>{
+        const  bookedSlots = turfToUpdate.slots[dateIndex].timeSlots.filter((slot)=>{
           const startTime = convert12HourTo24HourNumber(slot.start);
           const endTime = convert12HourTo24HourNumber(slot.end);
-          const startRangeTime = convert12HourTo24HourNumber(slotToRemove.start)
-          const endRangeTime = convert12HourTo24HourNumber(slotToRemove.end)
           return startTime >= startRangeTime && endTime <= endRangeTime
-        } )
-        const booking = new BookingModel();
-        booking.turf = req.body.turfId;
-        booking.user= req.id;
-        booking.bookingId = `bid.${req.id}`
-        booking.paymentType = 'Wallet';
-        booking.bookedSlots = {
+        })
+        booking.bookedSlots={
           date:new Date(req.body.slot.dateString),
           dateString:req.body.slot.dateString,
-          slots : bookedSlots.map(slot=>({start:slot.start,end:slot.end})),
-        };
+          slots:bookedSlots
+        }
+          turfToUpdate.slots[dateIndex].timeSlots = turfToUpdate.slots[dateIndex].timeSlots.filter((slot)=>{
+            const startTime = convert12HourTo24HourNumber(slot.start);
+            const endTime = convert12HourTo24HourNumber(slot.end);
+            return startTime < startRangeTime || endTime > endRangeTime
+          } )
+        }else{
+          const formattedSlots = [];
+          let startTime = convert12HourTo24HourNumber(slotToRemove.start);
+          while(startTime< endRangeTime){
+            formattedSlots.push({
+              start:convert24HourTo12HourString(startTime),
+              end:convert24HourTo12HourString(startTime+1)
+            })
+            startTime++
+          }
+          booking.bookedSlots = {
+            slots :formattedSlots,
+            date:new Date(data.bookingDate),
+            dateString:data.bookingDate 
+          }
+        }
+        booking.turf = req.body.turfId;
+        booking.user= req.id;
+        booking.bookingId = generateRandomString(12)
+        booking.paymentType = 'Wallet';
         booking.totalCost = req.body.totalCost;
         booking.Time = new Date()
         await booking.save()
@@ -417,25 +429,39 @@ const checkWalletAndBook = async(req,res)=>{
         }
         user.walletStatements.push(walletDetails)
         await user.save()
-        // updateSlotWithExpiredDates(req.body.turfId);
-        const turf = await TurfModel.findById(req.body.turfId);
-        const dateIndexToRemove = turf.slots.findIndex((slot)=>slot.dateString === date);
-        if(dateIndexToRemove !== -1){
-          turf.slots[dateIndexToRemove].timeSlots = turf.slots[dateIndex].timeSlots.filter((slot)=>{
-            const startTime = convert12HourTo24HourNumber(slot.start);
-            const endTime = convert12HourTo24HourNumber(slot.end);
-            const startRangeTime = convert12HourTo24HourNumber(slotToRemove.start)
-            const endRangeTime = convert12HourTo24HourNumber(slotToRemove.end)
-            return startTime < startRangeTime || endTime > endRangeTime
-          } )
-          console.log(turf.slots[dateIndexToRemove].timeSlots,'after changing slots ');
-          await turf.save();
-        } 
+        const turfAdmin = await TurfAdmin.findOne({_id:turfToUpdate.turfOwner});
+        console.log(turfAdmin.wallet,turfAdmin.walletStatements,'befoooreeeee');
+        turfAdmin.wallet += (booking.totalCost * 0.95);
+        turfAdmin.walletStatements.push({ 
+          turfName:turfToUpdate.turfName,
+          walletType:'credited from booking',
+          amount:(booking.totalCost * 0.95),
+          user:user.userName,
+          date:new Date(),
+          transaction:'credit'
+        });
+        console.log(turfAdmin.wallet,turfAdmin.walletStatements,'aftereeeeeee');
+        console.log(booking.totalCost * 0.95,turfAdmin.turfAdminName,' before turf admin saveeeeeee');
+        await turfAdmin.save()
+
+        let admin = await AdminModel.findOne({email:'pitchperfect@gmail.com'});
+        console.log(admin.email,admin.wallet,admin.walletStatements,'beforeeeeeee');
+        admin.wallet += (booking.totalCost * 0.05);
+        admin.walletStatements.push({
+          turfName:turfToUpdate.turfName,
+          walletType:'credited from booking',
+          user:user.userName,
+          amount:(booking.totalCost * 0.05),
+          date:new Date(),
+          transaction:'credit'
+        })
+        console.log(admin,admin.wallet,admin.walletStatements,' afteereeeeeee');
+        await admin.save()
+        await turfToUpdate.save()
       res.status(200).json({message:'successfully updated'})
-      }
-      
     }else res.status(402).json({message:'not enough wallet amount'})
   } catch (error) {
+    console.log(error);
     res.status(500).json({message:'Internal server error '})
   }
 }

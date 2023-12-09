@@ -60,11 +60,23 @@ const blockOrUnblockTurf = async(req,res)=>{
         if(turfToUpdate.status === 'active') turfToUpdate.status = 'block'
         else turfToUpdate.status = 'active';
         await turfToUpdate.save()
-        const turfs  = await TurfModel.find({turfOwner:req.id}); 
+        const turfs  = await TurfModel.find(); 
         res.status(200).json({turfs});
     } catch (error) {
         console.log(error,' this is eror ');
         res.status(500).json({message:'Internal server error'});
+    }
+}
+const allTurfs = async(req,res)=>{
+    try {
+        const turfs = await TurfModel.find();
+        if(turfs){
+            res.status(200).json({turfs})
+        }else{
+            res.status(400).json({message:'No turfs to list '})
+        }
+    } catch (error) {
+        res.statu(500).json({message:'Internal server error  '})
     }
 }
 
@@ -73,5 +85,6 @@ module.exports = {
     getSingleTurf,
     turfLists,
     updateSlotWithExpiredDates,
-    blockOrUnblockTurf
+    blockOrUnblockTurf,
+    allTurfs
 }

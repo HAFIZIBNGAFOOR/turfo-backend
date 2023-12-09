@@ -16,8 +16,10 @@ adminRoute.post('/addSports',verifyAdminJwt,adminController.addSports);
 adminRoute.post('/getTurfAdmin',verifyAdminJwt,adminController.getSingleTurfAdmin);
 adminRoute.get('/getSports',verifyAdminJwt,adminController.getSports);
 adminRoute.get('/get-bookings',verifyAdminJwt,bookingController.getFullTurfDetails);
-adminRoute.get('/get-turfs',verifyAdminJwt,turfController.turfLists);
+adminRoute.get('/get-turfs',verifyAdminJwt,turfController.allTurfs);
 adminRoute.patch('/blockUnblock-turf',verifyAdminJwt,turfController.blockOrUnblockTurf);
 adminRoute.get('/single-booking/:bookingId',verifyAdminJwt, bookingController.singleBooking)
-adminRoute.get('/cancel-booking',verifyAdminJwt,adminController.cancelBooking)
+adminRoute.post('/cancel-booking',verifyAdminJwt,adminController.cancelBooking)
+adminRoute.get('/admin-wallet',verifyAdminJwt,adminController.getWallet)
+
 module.exports = adminRoute

@@ -108,6 +108,7 @@ const usersDetails = async(req,res)=>{
 const blockOrUnblock=async(req,res)=>{
     try {
         const user = await User.findOne({_id:req.body.userId});
+        console.log(user,req.body.userId);
         if(user.isBlocked == true){
           user.isBlocked = false;
           await user.save() 
@@ -118,6 +119,7 @@ const blockOrUnblock=async(req,res)=>{
         const updatedCollection = await User.find();
         res.status(200).json({message:'user blocked successfully',users:updatedCollection})
     } catch (error) {
+        console.log(error);
         res.status(500).json({message:'internal server error'})
     }
 }
@@ -189,7 +191,7 @@ const getSports =async(req,res)=>{
 const cancelBooking = async(req,res)=>{
     try {
         const booking = await Bookings.findById(req.body.id).populate('turf')
-        const admin = await AdminModel.findById(req.id);
+        const admin = await AdminModel.findOne({email:'pitchperfect@gmail.com'});
         const turf = await Turf.findById(booking.turf._id);
         const turfOwner = await TurfAdmin.findById(turf.turfOwner)
         turfOwner.wallet -= booking.totalCost * 0.95;
@@ -220,12 +222,23 @@ const cancelBooking = async(req,res)=>{
             transaction:'credit'
         })
         await user.save()
-        booking.bookingStatus == 'Cancelled';
+        booking.bookingStatus = 'Cancelled';
         await booking.save();
-        const bookings = await Bookings.findById(booking._id);
-        res.status(500).json({bookings})
+        const bookings = await Bookings.findById(req.body.id).populate('turf');
+        res.status(200).json({bookings})
     } catch (error) {
+        console.log(error);
         res.status(500).json({message:"Internal server error "})
+    }
+}
+const getWallet = async(req,res)=>{
+    try {
+        const wallet = await AdminModel.findOne({email:"pitchperfect@gmail.com"});
+        if(wallet)res.status(200).json({wallet})
+        else res.status(400).json({message:'Not found'})
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({message:"Internal server error"})
     }
 }
 module.exports = {
@@ -238,5 +251,6 @@ module.exports = {
     getSingleTurfAdmin,
     getSports,
     usersDetails,
-    cancelBooking
+    cancelBooking,
+    getWallet
 }
