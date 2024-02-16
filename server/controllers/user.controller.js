@@ -34,7 +34,6 @@ const register = async(req,res)=>{
         }
     } catch (error) {
         res.status(500).json({error:'errror ocuured'})
-        console.log(error,' this is user registration error ' );
     }
 }
 const verifyUserBeforeOtp = async(req,res)=>{
@@ -47,7 +46,6 @@ const verifyUserBeforeOtp = async(req,res)=>{
 
     } catch (error) {
         res.status(500).json({message:"something went wrong try again"})
-        console.log(error);
     }
 }
 
@@ -63,7 +61,6 @@ const removeNonVerified= async(req,res)=>{
 const login= async(req,res)=>{
     try {
         const user = await User.findOne({phone:req.body.phone});
-        console.log(req.body);
 
             if(user){
                 if(!user.isBlocked){
@@ -76,7 +73,6 @@ const login= async(req,res)=>{
             }else res.status(400).json({message:"User is blocked by admin"})
         }else res.status(400).json({message:'User not Found '});
     } catch (error) {
-        console.log(error);
         res.status(500).json({message:'internal server error'})
     }
 }
@@ -117,7 +113,6 @@ const turfSlotsAvailable = async(req,res)=>{
     try {
         updateSlotWithExpiredDates(req.params.turfId)
         const allRatings = await RatingModel.find({turfId:req.params.turfId}).populate('userId');
-        console.log(allRatings,' this is ratings   ');
         if(allRatings){
             const turf = await TurfModel.findById(req.params.turfId);
             const turfData = {
@@ -139,7 +134,6 @@ const turfSlotsAvailable = async(req,res)=>{
                 totalRating+= rating.rating
             })
             let avgRating = totalRating/(ratings.length);
-            console.log(ratings,'this is ratings',avgRating,ratings.length);
                 res.status(200).json({turfData,slots:turf.slots,ratings,avgRating})
         }else{
             const turf = await TurfModel.findById(req.params.turfId);
@@ -156,7 +150,6 @@ const turfSlotsAvailable = async(req,res)=>{
         }
 
     } catch (error) {
-        console.log(error );
         res.status(500).json({message:'Internal server error'})
     }
 }
@@ -173,7 +166,6 @@ const userProfile = async(req,res)=>{
             wallet:userProfile.wallet,
             walletStatements:userProfile.walletStatements
         }
-        console.log(userProfile.walletStatements);
         res.status(200).json({profileData})
     } catch (error) {
         res.status(500).json({message:'Internal server error '})

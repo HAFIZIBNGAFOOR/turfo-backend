@@ -42,11 +42,9 @@ const getDashboardDetails=async(req,res)=>{
         })
         let monthlySales = 0;
         monthlyBookings.forEach(booking=>monthlySales += booking.totalCost)
-        // console.log(annualBookings,annualSales,monthlySales,monthlyBookings);
         const currentDay = today.getDay();
         const diff = today.getDate() - currentDay + (currentDay === 0 ? -6 : 1);
 
-        console.log(diff,' this islast week date ',new Date(today.setDate(diff)),currentDay,'  ');
         const weeklyBookings = bookings.filter(booking =>  {
             const bookingDate = new Date(booking.bookedSlots.date);
             return bookingDate > new Date(today.setDate(diff)) && bookingDate < new Date(today.setDate(diff + 6));
@@ -54,7 +52,6 @@ const getDashboardDetails=async(req,res)=>{
         });
         let weeklySales = 0 
         weeklyBookings.forEach(booking =>weeklySales += booking.totalCost )
-        console.log(weeklyBookings,' this is weekly ',weeklySales);
 
         let bookingsByMonth = {};
         let noOfBookings =0;
@@ -91,7 +88,6 @@ const getDashboardDetails=async(req,res)=>{
         })
         res.status(200).json({monthlyBooking:Object.values(bookingsByMonth),weeklySales,monthlySales,annualSales,sportsTypeCount:Object.values(sportsCount)})
     } catch (error) {
-        console.log(error);
         res.status(500).json({message:'error fetching user'})
     }
 }
@@ -108,7 +104,6 @@ const usersDetails = async(req,res)=>{
 const blockOrUnblock=async(req,res)=>{
     try {
         const user = await User.findOne({_id:req.body.userId});
-        console.log(user,req.body.userId);
         if(user.isBlocked == true){
           user.isBlocked = false;
           await user.save() 
@@ -119,7 +114,6 @@ const blockOrUnblock=async(req,res)=>{
         const updatedCollection = await User.find();
         res.status(200).json({message:'user blocked successfully',users:updatedCollection})
     } catch (error) {
-        console.log(error);
         res.status(500).json({message:'internal server error'})
     }
 }
@@ -162,7 +156,6 @@ const addSports = async(req,res)=>{
             res.status(200).json({message:'sports added successfully'});
         }
     } catch (error) {
-        console.log(error);
         res.status(500).json({message:'Internal server error'})
     }
 }
@@ -170,10 +163,8 @@ const addSports = async(req,res)=>{
 const getSingleTurfAdmin = async(req,res)=>{
     try {
         const turfAdmin = await TurfAdmin.findById(req.body.id)
-        console.log(turfAdmin);
         res.status(200).json({turfAdmin})
     } catch (error) {
-        console.log(error);
         res.status(500).json({message:'internal server error'})
     }
 }
@@ -181,7 +172,6 @@ const getSingleTurfAdmin = async(req,res)=>{
 const getSports =async(req,res)=>{
     try {
         const sports = await SportsModel.find();
-        console.log(sports);
         res.status(200).json({sports,message:"sports data fetched successfully"});
     } catch (error) {
         res.status(500).json({message:'Internal server error '})
@@ -227,7 +217,6 @@ const cancelBooking = async(req,res)=>{
         const bookings = await Bookings.findById(req.body.id).populate('turf');
         res.status(200).json({bookings})
     } catch (error) {
-        console.log(error);
         res.status(500).json({message:"Internal server error "})
     }
 }
@@ -237,7 +226,6 @@ const getWallet = async(req,res)=>{
         if(wallet)res.status(200).json({wallet})
         else res.status(400).json({message:'Not found'})
     } catch (error) {
-        console.log(error);
         res.status(500).json({message:"Internal server error"})
     }
 }

@@ -15,7 +15,6 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
 const bookingTurfs = async(data, metadata,req,res)=>{
   try {
     if(req.body && data && metadata){
-      console.log('inside all slots ');
       const turf = await TurfModel.findById(data.turf);
       const booking = new BookingModel();
       const user = await UserModel.findById(data.userId);
@@ -106,7 +105,6 @@ const checkoutSession = async(req,res)=>{
             }
         })
         const quantity =convert12HourTo24HourNumber(slots.end)- convert12HourTo24HourNumber(slots.start);
-        console.log(quantity,' quantity ');
         const session = await stripe.checkout.sessions.create({
             payment_method_types:['card'],
             line_items: [
@@ -150,7 +148,6 @@ const webhooks = async(req,res)=>{
         eventType=req.body.type
       if(eventType === "payment_intent.succeeded"){
         stripe.customers.retrieve(data.customer).then((customer)=>{
-          console.log(' inside the session checkout ');
             // bookingTurf(customer.metadata, data, req,res);
             bookingTurfs(customer.metadata, data, req,res)
         })
@@ -165,7 +162,7 @@ const bookingDetails = async(req,res)=>{
       const bookings = await BookingModel.find({user:userId}).populate('turf').populate('user');
         if(bookings && bookings.length>0){
           bookings.forEach(async(booking)=>{
-            if(booking.bookedSlots && booking.bookedSlots.slots.end && booking.bookedSlots.dateString && booking.bookingStatus==='Confirmed'){
+            if(booking.bookedSlots && booking.bookedSlots.slots[0].end && booking.bookedSlots.dateString && booking.bookingStatus==='Confirmed'){
               const currentDate = new Date()
               const bookingEndDate = new Date(`${booking.bookedSlots.dateString} ${currentDate.toISOString().split('T')[1]}`);
               if( bookingEndDate < currentDate ){
@@ -173,7 +170,7 @@ const bookingDetails = async(req,res)=>{
               };
               if(formatDate(currentDate)== booking.bookedSlots.dateString){
                 const currentTime  = currentDate.getHours();
-                if(currentTime >= new Date(`${booking.bookedSlots.dateString} ${booking.bookedSlots.slots.start}`).getHours()){
+                if(currentTime >= new Date(`${booking.bookedSlots.dateString} ${booking.bookedSlots.slots[0].start}`).getHours()){
                   booking.bookingStatus = 'Completed'
                 }
               }
@@ -190,17 +187,16 @@ const bookingDetails = async(req,res)=>{
 
 const cancelBooking = async(req,res)=>{
   try {
-    console.log(req.body,);
     const booking = await BookingModel.findOne({_id:req.body.bookingId,bookingStatus:'Confirmed'}).populate('turf');
     const today = formatDate(new Date());
     let refundAmount = 0;
     if(booking){
       let refundPercentage=0;
-      const bookingTime = new Date(`${booking.bookedSlots.dateString} ${booking.bookedSlots.slots.start}`);
+      console.log(booking.bookedSlots.dateString, 'date ',booking.bookedSlots.slots[0].start,' start time' ,booking.bookedSlots.slots[0].start);
+      const bookingTime = new Date(`${booking.bookedSlots.dateString} ${booking.bookedSlots.slots[0].start}`);
       const currentTime = new Date().getTime()
       const timeDifference = bookingTime.getTime() - currentTime ;
       const hourDiff = timeDifference / (1000 * 60 * 60);
-      console.log(hourDiff);
       if(hourDiff>24){
         refundPercentage = 100
       }else if(hourDiff >= 8 ){
@@ -215,6 +211,7 @@ const cancelBooking = async(req,res)=>{
         refundPercentage = 50
       }else refundPercentage = 0
        refundAmount = (refundPercentage / 100) * booking.totalCost;
+       console.log(refundAmount,' refund amountttt');
       booking.bookingStatus = 'Cancelled';
       const user = await UserModel.findOne({ _id: booking.user });
       const admin = await AdminModel.findOne({email:'pitchperfect@gmail.com'})
@@ -246,7 +243,7 @@ const cancelBooking = async(req,res)=>{
         date:new Date(),
         transaction:'debit'
       })
-      // await user.save();
+      await user.save();
     }
     // updating with removing expired dates and times;
     updateSlotWithExpiredDates(booking.turf);
@@ -254,13 +251,10 @@ const cancelBooking = async(req,res)=>{
     const turf = await TurfModel.findOne({ _id: booking.turf });
       if (turf) {
         const matchingIndex = turf.slots.findIndex((timeSlot) => timeSlot.dateString === booking.bookedSlots.dateString);
-        console.log(matchingIndex);
         if (matchingIndex !== -1) {
           turf.slots[matchingIndex].timeSlots.push(...slotToAdd);
-          // await turf.save();
         }
       }
-      // await booking.save()
     } else{
       res.status(404).json({message:'No booking Found with provided id '})
     }
@@ -268,7 +262,6 @@ const cancelBooking = async(req,res)=>{
     const updatedBooking = await BookingModel.findById(req.body.bookingId).populate('user').populate('turf')
     res.status(200).json({message:`Amount ${refundAmount}  will be refunded to your wallet soon`,status:true,updatedBooking})
   } catch (error) {
-    console.log(error);
     res.status(500).json({message:'Internal server error '})
   }
 }
@@ -276,7 +269,6 @@ const cancelBooking = async(req,res)=>{
 
 const singleBooking = async(req,res)=>{
   try {
-    console.log('inside single boooking ');
     const bookingId = req.params.bookingId
     const bookings =  await BookingModel.findById(bookingId).populate('user').populate('turf');
     const rating = await RatingModel.findOne({userId:req.id,turfId:bookings.turf._id});
@@ -285,7 +277,6 @@ const singleBooking = async(req,res)=>{
         else res.status(200).json({bookings})
       }else res.status(400).json({message:'No bookings found'})
   } catch (error) {
-    console.log(error);
     res.status(500).json({message:'internal server error '})
   }
 }
@@ -364,7 +355,7 @@ const getTurfLocation = async(req,res)=>{
     if(turf) res.status(200).json({location:{long:parseFloat(turf.turfLocation.long),lat:parseFloat(turf.turfLocation.lat)},turf:turf.turfName})
     else res.status(400).json({message:'Turf not exits '})
   } catch (error) {
-    console.log(error);
+    res.status(500).json({message:'Internal server error '})
   }
 }
 const checkWalletAndBook = async(req,res)=>{
@@ -408,8 +399,8 @@ const checkWalletAndBook = async(req,res)=>{
           }
           booking.bookedSlots = {
             slots :formattedSlots,
-            date:new Date(data.bookingDate),
-            dateString:data.bookingDate 
+            date:new Date(req.body.slot.dateString),
+            dateString:req.body.slot.dateString 
           }
         }
         booking.turf = req.body.turfId;
@@ -430,7 +421,6 @@ const checkWalletAndBook = async(req,res)=>{
         user.walletStatements.push(walletDetails)
         await user.save()
         const turfAdmin = await TurfAdmin.findOne({_id:turfToUpdate.turfOwner});
-        console.log(turfAdmin.wallet,turfAdmin.walletStatements,'befoooreeeee');
         turfAdmin.wallet += (booking.totalCost * 0.95);
         turfAdmin.walletStatements.push({ 
           turfName:turfToUpdate.turfName,
@@ -440,12 +430,9 @@ const checkWalletAndBook = async(req,res)=>{
           date:new Date(),
           transaction:'credit'
         });
-        console.log(turfAdmin.wallet,turfAdmin.walletStatements,'aftereeeeeee');
-        console.log(booking.totalCost * 0.95,turfAdmin.turfAdminName,' before turf admin saveeeeeee');
         await turfAdmin.save()
 
         let admin = await AdminModel.findOne({email:'pitchperfect@gmail.com'});
-        console.log(admin.email,admin.wallet,admin.walletStatements,'beforeeeeeee');
         admin.wallet += (booking.totalCost * 0.05);
         admin.walletStatements.push({
           turfName:turfToUpdate.turfName,
@@ -455,7 +442,6 @@ const checkWalletAndBook = async(req,res)=>{
           date:new Date(),
           transaction:'credit'
         })
-        console.log(admin,admin.wallet,admin.walletStatements,' afteereeeeeee');
         await admin.save()
         await turfToUpdate.save()
       res.status(200).json({message:'successfully updated'})

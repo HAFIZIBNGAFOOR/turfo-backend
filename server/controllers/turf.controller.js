@@ -11,7 +11,6 @@ const turfLists = async(req,res)=>{
             res.status(400).json({message:'No turfs to list '})
         }
     } catch (error) {
-        console.log(error);
         res.status(500).json({message:" Internal server error "})
     }
 }
@@ -63,7 +62,6 @@ const blockOrUnblockTurf = async(req,res)=>{
         const turfs  = await TurfModel.find(); 
         res.status(200).json({turfs});
     } catch (error) {
-        console.log(error,' this is eror ');
         res.status(500).json({message:'Internal server error'});
     }
 }

@@ -55,7 +55,6 @@ const sportsType = async(req,res)=>{
         const sports = await SportsModel.find();
         res.status(200).json({sports}) 
     } catch (error) {
-        console.log(error);
         res.status(200).json({message:'internal server error'})
     }
 }
@@ -113,7 +112,6 @@ const turfAdminDashboard = async(req,res)=>{
 
         // pie chart based on the types of sports booked\
         let turfCount = {}
-        console.log(turfs,' single owner');
         turfs.forEach((turf)=>{
             turfCount[turf.turfName]={turfName:turf.turfName,count:0}
         })
@@ -122,10 +120,8 @@ const turfAdminDashboard = async(req,res)=>{
             if(!turfCount[booking.turf.turfName]) turfCount[booking.turf.turfName]={turfName:booking.turf.turfName,count}   
                 turfCount[booking.turf.turfName].count++
         })
-        console.log(bookingsByMonth);
         res.status(200).json({monthlySales,weeklySales,annualSales,turfCount:Object.values(turfCount),bookingsByMonth:Object.values(bookingsByMonth)})
     } catch (error) {
-        console.log(error);
         res.status(500).json({message:'internal server error '});
     }
 }
@@ -213,7 +209,6 @@ const timeSlots = async(req,res)=>{
 }
 const addSlots =async(req,res)=>{
     try {
-        console.log('inside the add slots function',req.body);
         const { date,timeSlots,turfId } = req.body;
         const turf  = await TurfModel.findById(turfId);
         if(turf){
@@ -233,7 +228,6 @@ const addSlots =async(req,res)=>{
         }
         res.status(200).json({message:'success'})
     } catch (error) {
-        console.log(error);
         res.status(500).json({message:'internal server error'})
     }
 }
@@ -266,18 +260,15 @@ const cancelBookingByTurfAdmin = async(req,res)=>{
         const turf = await TurfModel.findById(booking.turf._id)
         res.status(200).json({bookings,turf})
     } catch (error) {
-        console.log(error,' this is error ');
         res.status(500).json({message:'Internal server error '})
     }
 }
 const getProfile = async(req,res)=>{
     try {
         const profile = await TurfAdmin.findById(req.id);
-        console.log(profile,' thi si turf profile');
         if(profile) res.status(200).json({profile})
         else res.status(400).json({message:'No data found'})
     } catch (error) {
-        console.log(error ,' this is error frm turf profile');
         res.status(500).json({message:'Internal server error '})
     }
 }
@@ -293,10 +284,8 @@ const updateProfile = async(req,res)=>{
             age:ageNum
         })
         const profile = await TurfAdmin.findById(id);
-        console.log(profile,' this is profile');
         res.status(200).json({profile})
     } catch (error) {
-        console.log(error);
         res.status(500).json({message:'Internal server error '})
     }
 }
@@ -305,7 +294,6 @@ const turfBookings = async(req,res)=>{
     try {
         const bookings = await Bookings.find({turf:req.body.turfId}).populate('user')
         const turf = await TurfModel.findById(req.body.turfId) ;
-        console.log(bookings,turf,' this is turf ');
         if(bookings && bookings.length>=1){
             res.status(200).json({bookings,turf})
         }
